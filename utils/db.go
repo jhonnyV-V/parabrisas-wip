@@ -197,16 +197,22 @@ func (db *SQLiteRepository) UpdateWindshieldStock(id, stock int64) error {
 	return nil
 }
 
-func (db *SQLiteRepository) GetUserByID(id int64) (User, error) {
-	var user User
-	err := db.db.Get(&user, "SELECT id,uid FROM user WHERE id=?", id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return User{}, nil
-	}
+func (db *SQLiteRepository) GetModelByBrandId(id int64) ([]Model, error) {
+	var models []Model
+	err := db.db.Get(&models, "SELECT * FROM model WHERE brand_id=?", id)
+
 	if err != nil {
-		return User{}, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return []Model{}, nil
+		}
+		return []Model{}, err
 	}
-	return user, nil
+
+	return models, nil
+}
+
+func (db *SQLiteRepository) GetModelByBrandName(id int64) ([]Model, error) {
+	
 }
 
 func (db *SQLiteRepository) GetUserByUID(uid string) (User, error) {

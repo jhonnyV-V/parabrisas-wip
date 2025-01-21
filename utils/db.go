@@ -28,12 +28,12 @@ const (
 
 type Brand struct {
 	Id   int64  `db:"id"`
-	Name string `db:"string"`
+	Name string `db:"name"`
 }
 
 type Model struct {
 	Id    int64  `db:"id"`
-	Name  string `db:"string"`
+	Name  string `db:"name"`
 	Brand int64  `db:"brand_id"`
 }
 
@@ -42,7 +42,7 @@ type WindShield struct {
 	Brand int64          `db:"brand_id"`
 	Model int64          `db:"model_id"`
 	Stock int            `db:"stock"`
-	Year  int            `db:"int"`
+	Year  string         `db:"year"`
 	//should the year be here?
 }
 
@@ -151,7 +151,7 @@ func (db *SQLiteRepository) CreateModel(name string, brand_id int64) (int64, err
 		var sqliteErr sqlite3.Error
 		if errors.As(err, &sqliteErr) {
 			if errors.Is(sqliteErr.ExtendedCode, sqlite3.ErrConstraintUnique) {
-				return 0,ErrDuplicate
+				return 0, ErrDuplicate
 			}
 		}
 		return 0, err
@@ -174,7 +174,7 @@ func (db *SQLiteRepository) CreateWindshield(typename WindshieldType, year strin
 		var sqliteErr sqlite3.Error
 		if errors.As(err, &sqliteErr) {
 			if errors.Is(sqliteErr.ExtendedCode, sqlite3.ErrConstraintUnique) {
-				return 0,ErrDuplicate
+				return 0, ErrDuplicate
 			}
 		}
 		return 0, err
@@ -197,7 +197,21 @@ func (db *SQLiteRepository) UpdateWindshieldStock(id, stock int64) error {
 	return nil
 }
 
-func (db *SQLiteRepository) GetModelByBrandId(id int64) ([]Model, error) {
+func (db *SQLiteRepository) GetAllBrands() ([]Brand, error) {
+	var brands []Brand
+	err := db.db.Get(&brands, "SELECT * FROM brand")
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []Brand{}, nil
+		}
+		return []Brand{}, err
+	}
+
+	return brands, nil
+}
+
+func (db *SQLiteRepository) GetModelsByBrandId(id int64) ([]Model, error) {
 	var models []Model
 	err := db.db.Get(&models, "SELECT * FROM model WHERE brand_id=?", id)
 
@@ -211,56 +225,41 @@ func (db *SQLiteRepository) GetModelByBrandId(id int64) ([]Model, error) {
 	return models, nil
 }
 
-func (db *SQLiteRepository) GetModelByBrandName(id int64) ([]Model, error) {
-	
-}
+func (db *SQLiteRepository) GetModelsByBrandName(name string) ([]Model, error) {
+	var models []Model
+	err := db.db.Get(
+		&models,
+		`SELECT
+			m.name,
+			m.id,
+			m.brand_id,
+			b.name AS brand_name
+		FROM model m
+			JOIN brand b ON m.brand_id = b.id
+			WHERE b.name = ?`,
+		name,
+	)
 
-func (db *SQLiteRepository) GetUserByUID(uid string) (User, error) {
-	var user User
-	err := db.db.Get(&user, "SELECT id,uid FROM user WHERE uid=?", uid)
-	if errors.Is(err, sql.ErrNoRows) {
-		return User{}, nil
-	}
 	if err != nil {
-		return User{}, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return []Model{}, nil
+		}
+		return []Model{}, err
 	}
-	return user, nil
+
+	return models, nil
 }
 
-func (db *SQLiteRepository) AllUsers() ([]User, error) {
-	var all []User
-	err := db.db.Get(&all, "SELECT * FROM user")
-	if errors.Is(err, sql.ErrNoRows) {
-		return []User{}, nil
-	}
+func (db *SQLiteRepository) GetWindShieldsByModelId(id int64) ([]WindShield, error) {
+	var windshields []WindShield
+	err := db.db.Get(&windshields, "SELECT * FROM windShield WHERE model_id = ?", id)
+
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return []WindShield{}, nil
+		}
+		return []WindShield{}, err
 	}
 
-	return all, nil
+	return windshields, nil
 }
-
-func (db *SQLiteRepository) GetContentByCID(cid string) (Content, error) {
-	var content Content
-	err := db.db.Get(&content, "SELECT cid FROM content WHERE cid=?", cid)
-	if errors.Is(err, sql.ErrNoRows) {
-		return Content{}, nil
-	}
-	if err != nil {
-		return Content{}, err
-	}
-	return content, nil
-}
-
-//func (r *SQLiteRepository) GetByName(name string) (*Website, error) {
-//	row := r.db.QueryRow("SELECT * FROM websites WHERE name = ?", name)
-//	var website Website
-//	if err := row.Scan(&website.ID, &website.Name, &website.URL, &website.Rank); err != nil {
-//		if errors.Is(err, sql.ErrNoRows) {
-//			return nil, ErrNotExists
-//		}
-//		return nil, err
-//	}
-//	return &website, nil
-//}
-//
